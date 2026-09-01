@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  /* Sampled from live Granola ask-bar crop */
+  --background: 0 0% 8%; /* #141414 */
+  --sidebar: 0 0% 6%; /* #0f0f0f */
+  --foreground: 0 0% 78%; /* #c7c7c7 */
+  --heading: 0 0% 86%; /* #dbdbdb */
+  --muted: 0 0% 24%; /* #3c3c3c mic / active fill */
+  --hover: 0 0% 14%; /* #242424 */
+  --muted-foreground: 240 5% 65%; /* #a1a1aa */
+  --nav: 240 5% 65%;
+  --placeholder: 240 4% 52%;
+  --border: 0 0% 25%; /* #404040 */
+  --surface: 0 0% 16.5%; /* #2a2a2a ask bar */
+  --pill: 0 0% 24%;
+  --ring: 240 5% 65%;
+  --radius: 0.75rem;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --background: 40 14% 97%;
+  --sidebar: 40 12% 95%;
+  --foreground: 0 0% 10%;
+  --heading: 0 0% 8%;
+  --muted: 40 10% 92%;
+  --hover: 40 10% 90%;
+  --muted-foreground: 30 4% 42%;
+  --nav: 30 3% 38%;
+  --placeholder: 30 4% 52%;
+  --border: 40 8% 88%;
+  --surface: 40 14% 94%;
+  --pill: 40 10% 90%;
+  --ring: 0 0% 20%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-foreground: hsl(var(--foreground));
+  --color-heading: hsl(var(--heading));
+  --color-muted: hsl(var(--muted));
+  --color-hover: hsl(var(--hover));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-nav: hsl(var(--nav));
+  --color-placeholder: hsl(var(--placeholder));
+  --color-border: hsl(var(--border));
+  --color-surface: hsl(var(--surface));
+  --color-pill: hsl(var(--pill));
+  --color-ring: hsl(var(--ring));
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif), ui-serif, Georgia, serif;
+  --radius-md: var(--radius);
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.011em;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+::selection {
+  background: hsl(var(--ring) / 0.22);
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
