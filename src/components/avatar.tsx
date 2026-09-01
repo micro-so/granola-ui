@@ -29,12 +29,12 @@ export function Avatar({ name, color = "#3f3f46", photoUrl, size = 36, rounded =
 
   return (
     <span
-      className={`flex items-center justify-center font-medium text-heading ${outline}`}
+      className={`flex items-center justify-center font-serif font-normal text-heading ${outline}`}
       style={{
         width: size,
         height: size,
         background: color,
-        fontSize: size >= 40 ? 15 : 12,
+        fontSize: Math.round(size * 0.58),
       }}
     >
       {initialFrom(name)}

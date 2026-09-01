@@ -38,7 +38,7 @@ export function NoteRow({
         <div className="truncate text-[12.5px] text-muted-foreground">{others.join(", ") || "You"}</div>
       </div>
       {showAddTo && note.addTo ? (
-        <span className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[12px] text-muted-foreground">
+        <span className="flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1.5 text-[12px] text-muted-foreground ring-1 ring-inset ring-white/[0.08]">
           Add to
           {note.addTo === "Standups" ? <Users className="h-3.5 w-3.5" /> : <FolderSimple className="h-3.5 w-3.5" />}
           {note.addTo}

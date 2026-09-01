@@ -46,7 +46,17 @@ export function HomePage() {
                 return (
                   <div
                     key={day.date}
-                    className={`flex gap-6 px-5 py-5 ${index > 0 ? "border-t border-border" : ""}`}
+                    className={`flex gap-6 px-5 ${index === 0 ? "pt-5 pb-3.5" : "pt-3.5 pb-5"} ${dayEvents.length === 0 ? "items-center" : "items-start"}`}
+                    style={
+                      index > 0
+                        ? {
+                            backgroundImage:
+                              "repeating-linear-gradient(to right, hsl(var(--border)) 0 5px, transparent 5px 8px)",
+                            backgroundSize: "100% 1px",
+                            backgroundRepeat: "repeat-x",
+                          }
+                        : undefined
+                    }
                   >
                     <div className="flex w-[132px] shrink-0 items-start gap-3">
                       <div className="font-serif text-[40px] font-normal leading-none text-heading">{day.day}</div>
@@ -61,7 +71,10 @@ export function HomePage() {
 
                     <div className="min-w-0 flex-1 pt-1">
                       {dayEvents.length === 0 ? (
-                        <div className="text-[13px] text-muted-foreground">No more events today</div>
+                        <div className="flex items-center gap-2.5">
+                          <span className="h-4 w-[3px] shrink-0 rounded-full bg-muted-foreground/55" />
+                          <div className="text-[13px] text-muted-foreground">No more events today</div>
+                        </div>
                       ) : (
                         <div className="flex flex-col gap-3.5">
                           {dayEvents.map((event) => (
@@ -103,7 +116,7 @@ export function HomePage() {
             placeholder="Ask anything"
             className="pointer-events-auto w-full max-w-[720px] shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
           >
-            <MutedAction className="h-9 gap-2 px-3.5 text-[13px] text-heading">
+            <MutedAction className="h-9 gap-2 px-3.5 text-[13px] text-heading ring-1 ring-inset ring-white/[0.08]">
               <SquareSlash className="h-3.5 w-3.5" strokeWidth={1.75} />
               List recent todos
             </MutedAction>
