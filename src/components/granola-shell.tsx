@@ -92,7 +92,7 @@ function prewarmProfileTabs(collection: "people" | "companies", profile: WarmPro
 
   const notes = new URLSearchParams(scope);
   notes.set("all", "1");
-  notes.set("v", "4");
+  notes.set("v", "5");
   prefetchJson(`/api/notes?${notes.toString()}`);
   prefetchJson(`/api/tasks?${scope.toString()}`);
   const deals = new URLSearchParams(scope);
@@ -202,9 +202,8 @@ export function GranolaShell({ children }: { children: ReactNode }) {
         if (!match) continue;
         const collection = match[1] === "people" ? "people" : "companies";
         const id = match[2];
-        const endpoint = `/api/${collection}?id=${encodeURIComponent(id)}${
-          collection === "people" ? "&v=2" : ""
-        }`;
+        const version = collection === "people" ? "3" : "2";
+        const endpoint = `/api/${collection}?id=${encodeURIComponent(id)}&v=${version}`;
         void fetchJsonCached<{
           items?: WarmProfile[];
         }>(endpoint).then((data) => {

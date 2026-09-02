@@ -109,8 +109,13 @@ function addToken(tokens: Set<string>, value: string) {
   if (trimmed.length >= 3) tokens.add(trimmed);
 }
 
-async function searchTokens(options: { personId?: string; companyId?: string; q?: string }) {
+async function profileContext(options: {
+  personId?: string;
+  companyId?: string;
+  q?: string;
+}) {
   const tokens = new Set<string>();
+  const personIds = new Set(options.personId ? [options.personId] : []);
   if (options.q) {
     addToken(tokens, options.q);
     for (const part of options.q.split(/\s+/)) addToken(tokens, part);
@@ -122,7 +127,25 @@ async function searchTokens(options: { personId?: string; companyId?: string; q?
       addToken(tokens, person.name);
       for (const part of person.name.split(/\s+/)) addToken(tokens, part);
     }
-    if (person?.email) addToken(tokens, person.email.split("@")[0] ?? "");
+    if (person?.email) {
+      addToken(tokens, person.email.split("@")[0] ?? "");
+      const normalizedEmail = person.email.trim().toLowerCase();
+      const response = await getMicroClient()
+        .prism.objects.identities.query({
+          query: {
+            select: ["email_addresses.email"],
+            filter: [{ email_addresses: { contains: normalizedEmail } }],
+            limit: 50,
+          },
+        })
+        .catch(() => null);
+      for (const row of response?.data ?? []) {
+        const emails = asRefs(propertiesOf(row).email_addresses)
+          .map((email) => asString(email.properties?.email).trim().toLowerCase())
+          .filter(Boolean);
+        if (emails.includes(normalizedEmail)) personIds.add(row.id);
+      }
+    }
   }
   if (options.companyId) {
     const { getCompany } = await import("@/lib/micro-companies");
@@ -130,7 +153,10 @@ async function searchTokens(options: { personId?: string; companyId?: string; q?
     if (company?.name) addToken(tokens, company.name);
     if (company?.domain) addToken(tokens, company.domain.split(".")[0] ?? "");
   }
-  return [...tokens].slice(0, 4);
+  return {
+    tokens: [...tokens].slice(0, 4),
+    personIds: [...personIds],
+  };
 }
 
 function mapRows(rows: Array<{ id: string; properties?: Record<string, unknown> | null; default?: Record<string, unknown> | null }>) {
@@ -140,7 +166,7 @@ function mapRows(rows: Array<{ id: string; properties?: Record<string, unknown> 
 async function queryDocumentPages(options: {
   select: string[];
   tokens: string[];
-  personId?: string;
+  personIds?: string[];
   companyId?: string;
   pages: number;
 }) {
@@ -148,10 +174,11 @@ async function queryDocumentPages(options: {
   const titleFilters = options.tokens.map((token) => ({ title: { contains: token } }));
   const rows: PrismRow[] = [];
 
-  const personId = options.personId;
+  const personIds = options.personIds ?? [];
   const companyId = options.companyId;
-  const relationFilter: Record<string, { in: string[] }> | null = personId
-    ? { people: { in: [personId] } }
+  const relationFilter: Record<string, { in: string[] }> | null =
+    personIds.length > 0
+    ? { people: { in: personIds } }
     : companyId
       ? { companies: { in: [companyId] } }
       : null;
@@ -207,7 +234,7 @@ export async function queryNotes(options: {
   q?: string;
   all?: boolean;
 }) {
-  const tokens = await searchTokens(options);
+  const { tokens, personIds } = await profileContext(options);
   if ((options.personId || options.companyId) && tokens.length === 0) {
     return { items: [] as Note[] };
   }
@@ -219,7 +246,7 @@ export async function queryNotes(options: {
     const rows = await queryDocumentPages({
       select,
       tokens,
-      personId: options.personId,
+      personIds,
       companyId: options.companyId,
       pages,
     });
@@ -234,7 +261,7 @@ export async function queryNotes(options: {
     const rows = await queryDocumentPages({
       select: NOTE_SELECT_BASIC,
       tokens,
-      personId: options.personId,
+      personIds,
       companyId: options.companyId,
       pages,
     });

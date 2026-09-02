@@ -242,6 +242,54 @@ function stringList(value: unknown) {
   return [...new Set(values.map((item) => asString(item).trim()).filter(Boolean))];
 }
 
+let skillLabelsCache:
+  | { expiresAt: number; promise: Promise<Map<string, string>> }
+  | undefined;
+
+function skillLabels() {
+  if (skillLabelsCache && skillLabelsCache.expiresAt > Date.now()) {
+    return skillLabelsCache.promise;
+  }
+
+  const promise = getMicroClient()
+    .prism.properties.list("identity", { include_options: true })
+    .then((response) => {
+      const definitions = Object.values(
+        (response as unknown as {
+          identity?: Record<
+            string,
+            {
+              slug?: string;
+              options?: Array<{ slug?: string; value?: string | null }>;
+            }
+          >;
+        }).identity ?? {},
+      );
+      const property = definitions.find(
+        (definition) => definition.slug === "skills_and_interests",
+      );
+      return new Map(
+        (property?.options ?? []).flatMap((option) =>
+          option.slug && option.value ? [[option.slug, option.value] as const] : [],
+        ),
+      );
+    });
+
+  skillLabelsCache = { expiresAt: Date.now() + 10 * 60_000, promise };
+  return promise;
+}
+
+async function hydrateSkillLabels(person: Person) {
+  if (!person.skillsAndInterests?.length) return person;
+  const labels = await skillLabels();
+  return {
+    ...person,
+    skillsAndInterests: person.skillsAndInterests.map(
+      (skill) => labels.get(skill) ?? skill,
+    ),
+  };
+}
+
 export function mapPerson(row: PrismRow): Person | null {
   if (row.is_human_type === false) return null;
 
@@ -519,7 +567,10 @@ export async function getPerson(id: string, options: { fallback?: boolean } = {}
       const row = response.data?.[0];
       const person = row ? mapPerson(row) : null;
       if (!person) return null;
-      const withHistoryOrganizations = await hydrateHistoryOrganizations(person).catch(() => person);
+      const withSkillLabels = await hydrateSkillLabels(person).catch(() => person);
+      const withHistoryOrganizations = await hydrateHistoryOrganizations(withSkillLabels).catch(
+        () => withSkillLabels,
+      );
       return hydratePersonCompany(withHistoryOrganizations).catch(() => withHistoryOrganizations);
     } catch (error) {
       lastError = error;

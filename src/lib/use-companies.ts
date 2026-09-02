@@ -37,7 +37,7 @@ export function useCompany(id: string) {
     company?: Company;
     message: string | null;
   }>({ id: "", message: null });
-  const url = `/api/companies?id=${encodeURIComponent(id)}`;
+  const url = `/api/companies?id=${encodeURIComponent(id)}&v=2`;
 
   useEffect(() => {
     if (!id || source === "placeholder") return;

@@ -85,8 +85,7 @@ export function CompanyPanel({ companyId }: { companyId: string }) {
         subtitle: "Attio - Series A pipeline",
         photoUrl: company?.logoUrl,
         avatarName: "Andreessen Horowitz",
-        sourceLogoUrl:
-          "https://brandbadge.clearbit.com/580adb44-80f2-49ca-95c2-0aea3539f30d",
+        sourceLogoUrl: "/attio-logo.png",
         color: company?.logoColor ?? "#f4f4f5",
         status: "",
       },

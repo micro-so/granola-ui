@@ -139,7 +139,7 @@ export function usePerson(id: string) {
   const [person, setPerson] = useState<Person | undefined>();
   const [loadedId, setLoadedId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const url = `/api/people?id=${encodeURIComponent(id)}&v=2`;
+  const url = `/api/people?id=${encodeURIComponent(id)}&v=3`;
 
   useEffect(() => {
     if (!id || source === "placeholder") return;
@@ -201,6 +201,7 @@ export function useCompanyConnections(options: {
   if (options.domain) query.set("domain", options.domain);
   if (options.domains?.length) query.set("domains", options.domains.join(","));
   if (options.name) query.set("name", options.name);
+  query.set("v", "2");
   const queryString = query.toString();
   const url = `/api/people?${queryString}`;
 
