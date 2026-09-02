@@ -27,6 +27,22 @@ export function AskField({
   );
 }
 
+export function DockedAsk({ placeholder = "Ask anything" }: { placeholder?: string }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-5 flex justify-center px-6">
+      <AskField
+        placeholder={placeholder}
+        className="pointer-events-auto w-full max-w-[720px] shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+      >
+        <MutedAction className="h-9 gap-2 px-3.5 text-[13px] text-heading ring-1 ring-inset ring-foreground/[0.08]">
+          <SquareSlash className="h-3.5 w-3.5" strokeWidth={1.75} />
+          List recent todos
+        </MutedAction>
+      </AskField>
+    </div>
+  );
+}
+
 export function AskBar({ placeholder }: { placeholder: string }) {
   return (
     <div className="mt-8">

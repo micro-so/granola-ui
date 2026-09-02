@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       data-theme="dark"
       className={`${inter.variable} ${serif.variable} h-full antialiased`}
     >
-      <body className="h-full overflow-hidden font-sans">{children}</body>
+      <body className="h-full overflow-hidden font-sans">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

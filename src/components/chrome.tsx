@@ -1,9 +1,15 @@
-import Link from "next/link";
+"use client";
+
+import { CaretLeft } from "@phosphor-icons/react";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 export const contentColumnClass = "mx-auto w-full max-w-[680px] px-6";
 export const directoryGridClass =
   "grid grid-cols-[minmax(0,1fr)_140px_80px] items-center px-1 pr-12";
+
+export const peopleDirectoryGridClass =
+  "grid grid-cols-[minmax(176px,0.85fr)_minmax(200px,1.6fr)_120px_120px_72px] items-start gap-x-2 px-1 pr-8";
 
 export function ContentColumn({
   children,
@@ -16,25 +22,33 @@ export function ContentColumn({
 }
 
 export function BackPill({
-  href,
-  label,
-  children,
+  fallbackHref = "/",
+  label = "Back",
   className = "",
 }: {
-  href: string;
-  label: string;
-  children: ReactNode;
+  fallbackHref?: string;
+  label?: string;
   className?: string;
 }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  if (pathname === "/") return null;
+
   return (
-    <Link
-      href={href}
+    <button
+      type="button"
       aria-label={label}
-      className={`flex h-7 w-fit items-center gap-1 rounded-full border border-border px-2 text-nav hover:bg-hover hover:text-foreground ${className}`}
+      onClick={() => {
+        if (window.history.length > 1) {
+          router.back();
+          return;
+        }
+        router.push(fallbackHref);
+      }}
+      className={`flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-hover hover:text-foreground ${className}`}
     >
-      <span className="text-[15px] leading-none">‹</span>
-      {children}
-    </Link>
+      <CaretLeft className="h-4 w-4" weight="bold" />
+    </button>
   );
 }
 
@@ -53,12 +67,14 @@ export function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] ${
+      className={`flex shrink-0 items-center gap-1.5 rounded-full border border-border text-[13px] ${
+        quiet ? "px-2.5 py-0.75" : "px-3 py-1.5"
+      } ${
         active
           ? "bg-muted text-foreground"
           : quiet
             ? "text-muted-foreground hover:bg-hover hover:text-foreground"
-            : "text-foreground hover:bg-hover"
+            : "text-muted-foreground hover:bg-hover hover:text-foreground"
       }`}
     >
       {children}

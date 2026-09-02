@@ -2,28 +2,45 @@
 
 import { useMemo, useState } from "react";
 import { DirectoryPage } from "@/components/directory-page";
-import { people } from "@/lib/data";
+import { formatShortDate } from "@/lib/data";
+import { usePeople, usePeopleViews } from "@/lib/use-people";
+import { useStoredString } from "@/lib/use-stored-string";
+
+const VIEW_STORAGE_KEY = "granola-ui:people-view";
 
 export function PeopleDirectory() {
-  const [filter, setFilter] = useState<"everyone" | "met">("everyone");
+  const [search, setSearch] = useState("");
+  const [viewId, setViewId] = useStoredString(VIEW_STORAGE_KEY);
+  const { items: views, source } = usePeopleViews();
+  const selectedViewId = views.some((view) => view.id === viewId) ? viewId : (views[0]?.id ?? "");
+  const { items, status, message, hasMore, loadingMore, loadMore } = usePeople({
+    search,
+    viewId: selectedViewId,
+    enabled: source === "placeholder" || Boolean(selectedViewId) || Boolean(search),
+  });
 
   const rows = useMemo(
     () =>
-      people
-        .filter((person) => !(filter === "met" && person.isMe))
+      items
+        .filter((person) => !(source === "placeholder" && selectedViewId === "met" && person.isMe))
         .map((person) => ({
           id: person.id,
           href: `/people/${person.id}`,
           name: person.name,
           subtitle: person.email,
+          extraEmailCount: person.extraEmailCount,
           lastNoteLabel: person.lastNoteLabel,
+          lastMeetingLabel: person.lastMeeting ? formatShortDate(person.lastMeeting) : person.lastNoteLabel,
+          summary: person.summary,
+          lastInteractionLabel: person.lastInteraction ? formatShortDate(person.lastInteraction) : "—",
+          relationshipStrength: person.relationshipStrength,
           noteCount: person.noteCount,
           color: person.avatarColor,
           photoUrl: person.photoUrl,
           nameExtra: person.isMe ? " (me)" : undefined,
           searchText: person.title,
         })),
-    [filter],
+    [items, selectedViewId, source],
   );
 
   return (
@@ -31,11 +48,22 @@ export function PeopleDirectory() {
       title="People"
       entityLabel="Person"
       searchPlaceholder="Search people"
-      empty="No people match that search."
-      filters={[
-        { id: "everyone", label: "Everyone", active: filter === "everyone", onClick: () => setFilter("everyone") },
-        { id: "met", label: "People I met", active: filter === "met", onClick: () => setFilter("met") },
-      ]}
+      empty="No people in this view."
+      message={message}
+      loading={status === "loading"}
+      serverSearch={source === "micro"}
+      onQueryChange={setSearch}
+      filters={views.map((view) => ({
+        id: view.id,
+        label: view.name,
+        active: view.id === selectedViewId,
+        onClick: () => setViewId(view.id),
+      }))}
+      layout="directory"
+      metricLabel={source === "micro" ? "Strength" : "Notes"}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
+      onLoadMore={loadMore}
       rows={rows}
     />
   );
