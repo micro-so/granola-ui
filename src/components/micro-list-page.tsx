@@ -25,7 +25,8 @@ import {
 } from "@/components/space-page";
 import { isVerifiedEntity, VerifiedBadge } from "@/components/verified-badge";
 import type { MicroListRecord, MicroListTab } from "@/lib/micro-lists";
-import { useMicroListRecords } from "@/lib/use-micro-lists";
+import { useFolderProperties } from "@/lib/use-folder-properties";
+import { useMicroListRecords, useMicroLists } from "@/lib/use-micro-lists";
 
 const TAB_LABELS: Record<MicroListTab, string> = {
   people: "people",
@@ -37,14 +38,27 @@ const TAB_LABELS: Record<MicroListTab, string> = {
 
 export function MicroListPage({ listId }: { listId: string }) {
   const { list, items, status, message } = useMicroListRecords(listId);
+  const { items: lists } = useMicroLists();
   const [selectedTab, setSelectedTab] = useState<FolderTab | null>(null);
   const tab = selectedTab ?? list?.tab ?? "activity";
   const relevant = list?.tab === tab;
+  const { properties: folderProperties, saveProperties } = useFolderProperties(
+    `list:${listId}`,
+    {
+      name: list?.name || "CRM",
+      description: list?.description || "Micro CRM",
+      parentFolder: "Micro team",
+      subfolders: [],
+      sharing: "team",
+      folderType: "automatic",
+      includeConnectedObjects: true,
+    },
+  );
 
   return (
     <ProfileFrame backHref="/" backLabel="Back to home">
       <ProfileHeader
-        name={list?.name || (status === "loading" ? "Loading…" : "CRM")}
+        name={status === "loading" && !list ? "Loading…" : folderProperties.name}
         actions={
           <div className="ml-auto">
             <FolderAddMenu onSelect={setSelectedTab} />
@@ -56,14 +70,21 @@ export function MicroListPage({ listId }: { listId: string }) {
           </span>
         }
       >
-        <span>{list?.description || "Micro CRM"}</span>
+        <span>{folderProperties.description || "Micro CRM"}</span>
       </ProfileHeader>
       <FolderActions
         folderId={listId}
-        name={list?.name || "CRM"}
+        name={folderProperties.name}
         href={`/lists/${listId}`}
         favoriteId={`list:${listId}`}
         itemLabel="list"
+        editorProperties={folderProperties}
+        parentOptions={[
+          "Micro team",
+          ...lists.filter((item) => item.id !== listId).map((item) => item.name),
+        ]}
+        teamScoped
+        onSaveProperties={saveProperties}
       />
 
       <div className="mt-8 flex items-center gap-3">
@@ -80,8 +101,8 @@ export function MicroListPage({ listId }: { listId: string }) {
           <FolderTabChip tab="notes" active={tab} onChange={setSelectedTab} icon={<NoteIcon />}>
             Notes
           </FolderTabChip>
-          <FolderTabChip tab="files" active={tab} onChange={setSelectedTab} icon={<FilesIcon />}>
-            Files
+          <FolderTabChip tab="tasks" active={tab} onChange={setSelectedTab} icon={<ListChecks />}>
+            Tasks
           </FolderTabChip>
         </div>
         <FolderMoreMenu active={tab} onSelect={setSelectedTab} />
@@ -170,7 +191,7 @@ function TaskListRows({ items }: { items: MicroListRecord[] }) {
 function DealGroups({ items }: { items: MicroListRecord[] }) {
   const groups = new Map<string, MicroListRecord[]>();
   for (const item of items) {
-    const status = item.subtitle.trim() || "No status";
+    const status = item.status?.trim() || "No status";
     groups.set(status, [...(groups.get(status) ?? []), item]);
   }
 
@@ -194,7 +215,7 @@ function DealStatusGroup({ status, deals }: { status: string; deals: MicroListRe
       </h2>
       <div className="flex flex-col">
         {visibleDeals.map((deal) => (
-          <MicroListRecordRow key={deal.id} tab="deals" item={deal} showSubtitle={false} />
+          <MicroListRecordRow key={deal.id} tab="deals" item={deal} />
         ))}
       </div>
       {deals.length > 3 ? (
@@ -213,20 +234,20 @@ function DealStatusGroup({ status, deals }: { status: string; deals: MicroListRe
 function MicroListRecordRow({
   tab,
   item,
-  showSubtitle = true,
 }: {
   tab: MicroListTab;
   item: MicroListRecord;
-  showSubtitle?: boolean;
 }) {
+  const hasRelatedDealEntity =
+    tab === "deals" && Boolean(item.avatarName || item.photoUrl);
   const content = (
     <>
-      {tab === "people" || tab === "companies" ? (
+      {tab === "people" || tab === "companies" || hasRelatedDealEntity ? (
         <Avatar
-          name={item.name}
+          name={item.avatarName || item.name}
           color={item.color}
           photoUrl={item.photoUrl}
-          rounded={tab === "companies" ? "md" : "full"}
+          rounded={tab === "people" ? "full" : "md"}
           size={28}
         />
       ) : (
@@ -242,7 +263,7 @@ function MicroListRecordRow({
             <VerifiedBadge entityId={item.id} />
           ) : null}
         </div>
-        {showSubtitle && item.subtitle ? (
+        {item.subtitle ? (
           <div className="truncate text-[12.5px] text-muted-foreground">{item.subtitle}</div>
         ) : null}
       </div>

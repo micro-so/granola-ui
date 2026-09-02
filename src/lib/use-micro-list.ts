@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchJsonCached, getCachedJson } from "@/lib/client-query-cache";
 import { useDataSource } from "@/lib/data-source";
 
@@ -16,31 +16,35 @@ export function useMicroList<T>({
   placeholder,
   fallbackWhenEmpty = false,
   enabled = true,
+  debounceMs = 0,
 }: {
   path: string;
   params?: Record<string, string | undefined>;
   placeholder: T[];
   fallbackWhenEmpty?: boolean;
   enabled?: boolean;
+  debounceMs?: number;
 }) {
   const { source } = useDataSource();
   const [items, setItems] = useState<T[]>(placeholder);
   const [status, setStatus] = useState<"ready" | "loading">("ready");
   const [live, setLive] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const placeholderRef = useRef(placeholder);
+  useEffect(() => {
+    placeholderRef.current = placeholder;
+  }, [placeholder]);
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params ?? {})) {
     if (value) query.set(key, value);
   }
   const queryString = query.toString();
-  const delay = params?.q ? 250 : 0;
+  const url = `${path}?${queryString}`;
 
   useEffect(() => {
     if (source === "placeholder" || !enabled) return;
 
     let cancelled = false;
-    const url = `${path}?${queryString}`;
-
     const timer = window.setTimeout(async () => {
       const cached = getCachedJson<Payload<T>>(url);
       if (cached) {
@@ -57,7 +61,7 @@ export function useMicroList<T>({
         const next = data.items ?? [];
         const nextLive = Boolean(data.live);
         if (fallbackWhenEmpty && !nextLive) {
-          setItems(placeholder);
+          setItems(placeholderRef.current);
           setLive(false);
           setMessage(data.message ?? "Could not load Micro data.");
         } else {
@@ -69,7 +73,7 @@ export function useMicroList<T>({
       } catch (error) {
         if (cancelled) return;
         if (fallbackWhenEmpty) {
-          setItems(placeholder);
+          setItems(placeholderRef.current);
           setLive(false);
           setMessage(error instanceof Error ? error.message : "Could not load Micro data.");
         } else {
@@ -79,19 +83,29 @@ export function useMicroList<T>({
         }
         setStatus("ready");
       }
-    }, delay);
+    }, debounceMs);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [source, path, queryString, fallbackWhenEmpty, enabled, delay, placeholder]);
+  }, [source, url, fallbackWhenEmpty, enabled, debounceMs]);
 
   if (source === "placeholder") {
     return { source, status: "ready" as const, items: placeholder, live: false, message: null };
   }
   if (!enabled) {
     return { source, status: "loading" as const, items: [] as T[], live: false, message: null };
+  }
+  const cached = getCachedJson<Payload<T>>(url);
+  if (cached) {
+    return {
+      source,
+      status: "ready" as const,
+      items: cached.items ?? [],
+      live: Boolean(cached.live),
+      message: cached.message ?? null,
+    };
   }
   return { source, status, items, live, message };
 }

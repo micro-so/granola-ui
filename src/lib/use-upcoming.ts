@@ -26,7 +26,7 @@ export function useUpcoming() {
     if (source === "placeholder") return;
 
     let cancelled = false;
-    fetchJsonCached<Payload>("/api/upcoming")
+    fetchJsonCached<Payload>("/api/upcoming?v=3")
       .then((data) => {
         if (cancelled) return;
         setResult({

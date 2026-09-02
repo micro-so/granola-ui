@@ -7,12 +7,15 @@ import { CompanyProfile } from "@/components/company-profile";
 import { ProfilePageSkeleton } from "@/components/loading-state";
 import { NotesFeed, type ProfileTab } from "@/components/notes-feed";
 import { ProfileActionsMenu } from "@/components/profile-actions-menu";
+import { ProfileFolderMenu } from "@/components/profile-folder-menu";
 import { ProfileFrame, ProfileHeader, ProfileMeta } from "@/components/profile-frame";
 import { isVerifiedEntity, VerifiedBadge } from "@/components/verified-badge";
 import { includePersonId, meId } from "@/lib/data";
 import { useActivity } from "@/lib/use-activity";
 import { useCompany } from "@/lib/use-companies";
 import { useComments } from "@/lib/use-comments";
+import { useDeals } from "@/lib/use-deals";
+import { useProfileFolderMemberships } from "@/lib/use-micro-lists";
 import { useNotes } from "@/lib/use-notes";
 import { useCompanyConnections } from "@/lib/use-people";
 import { socialLinks } from "@/lib/social";
@@ -24,6 +27,7 @@ export function CompanyPanel({ companyId }: { companyId: string }) {
   const { items: connections, connectionCount, status: connectionsStatus } = useCompanyConnections({
     companyId,
     domain: company?.domain,
+    domains: company?.domains,
     name: company?.name,
     enabled: Boolean(company),
   });
@@ -38,10 +42,20 @@ export function CompanyPanel({ companyId }: { companyId: string }) {
     q: company?.name,
     enabled: tab === "tasks",
   });
+  const { items: deals, status: dealsStatus } = useDeals({
+    companyId,
+    enabled: tab === "deals",
+  });
+  const { items: folders, status: foldersStatus } =
+    useProfileFolderMemberships({
+      companyId,
+      enabled: Boolean(company),
+    });
   const { items: activity, upcoming: activityUpcoming, status: activityStatus } = useActivity({
     companyId,
     q: company?.name,
     domain: company?.domain,
+    domains: company?.domains,
     company,
     enabled: Boolean(company) && tab === "activity",
   });
@@ -58,6 +72,33 @@ export function CompanyPanel({ companyId }: { companyId: string }) {
 
   const upcoming = useMemo(() => includePersonId(activityUpcoming, mineId), [activityUpcoming, mineId]);
   const notes = useMemo(() => includePersonId(activity, mineId), [activity, mineId]);
+  const profileDeals = useMemo(() => {
+    const isAndreessen = [company?.domain, ...(company?.domains ?? [])].some(
+      (domain) => domain?.toLowerCase() === "a16z.com",
+    );
+    if (!isAndreessen) return deals;
+
+    return [
+      {
+        id: "demo-attio-andreessen-series-a",
+        name: "Andreessen Horowitz",
+        subtitle: "Attio - Series A pipeline",
+        photoUrl: company?.logoUrl,
+        avatarName: "Andreessen Horowitz",
+        sourceLogoUrl:
+          "https://brandbadge.clearbit.com/580adb44-80f2-49ca-95c2-0aea3539f30d",
+        color: company?.logoColor ?? "#f4f4f5",
+        status: "",
+      },
+      ...deals,
+    ];
+  }, [
+    company?.domain,
+    company?.domains,
+    company?.logoColor,
+    company?.logoUrl,
+    deals,
+  ]);
 
   if (status === "loading" && !company) {
     return (
@@ -132,6 +173,10 @@ export function CompanyPanel({ companyId }: { companyId: string }) {
               {connectionCount} {connectionCount === 1 ? "connection" : "connections"}
             </ProfileMeta>
           ) : null}
+          <ProfileFolderMenu
+            folders={folders}
+            loading={foldersStatus === "loading"}
+          />
         </div>
       </ProfileHeader>
       <NotesFeed
@@ -147,11 +192,13 @@ export function CompanyPanel({ companyId }: { companyId: string }) {
         documents={documents}
         upcoming={upcoming}
         tasks={tasks}
+        deals={profileDeals}
         comments={comments}
         documentsLoading={documentsStatus === "loading"}
         mineId={mineId}
         loading={activityStatus === "loading"}
         tasksLoading={tasksStatus === "loading"}
+        dealsLoading={dealsStatus === "loading"}
         commentsLoading={commentsStatus === "loading"}
         commentsPosting={commentsPosting}
         onSubmitComment={addComment}

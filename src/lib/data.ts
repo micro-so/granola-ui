@@ -51,6 +51,7 @@ export type Person = {
   companyId: string;
   companyName?: string;
   email: string;
+  phone?: string;
   extraEmailCount: number;
   photoUrl: string;
   summary: string;
@@ -99,7 +100,11 @@ export type Note = {
   personIds: string[];
   companyId: string;
   preview: string;
-  kind: "chat" | "meet" | "email";
+  kind: "chat" | "meet" | "email" | "document";
+  emailSnippet?: string;
+  emailThreadId?: string;
+  chatSnippet?: string;
+  chatThreadId?: string;
   occurredAt?: string;
   source?: "micro" | "granola" | "demo";
   href?: string;

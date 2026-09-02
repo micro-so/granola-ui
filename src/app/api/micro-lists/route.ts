@@ -3,6 +3,7 @@ import { failedPayload, missingCredentials } from "@/lib/micro";
 import {
   getMicroList,
   listMicroLists,
+  queryProfileFolderMemberships,
   queryMicroListRecords,
 } from "@/lib/micro-lists";
 
@@ -18,6 +19,17 @@ export async function GET(request: NextRequest) {
 
   try {
     const id = request.nextUrl.searchParams.get("id")?.trim() || "";
+    const personId =
+      request.nextUrl.searchParams.get("personId")?.trim() || "";
+    const companyId =
+      request.nextUrl.searchParams.get("companyId")?.trim() || "";
+    if (personId || companyId) {
+      const items = await queryProfileFolderMemberships({
+        personId: personId || undefined,
+        companyId: companyId || undefined,
+      });
+      return Response.json({ live: true, message: null, items });
+    }
     if (!id) {
       const items = await listMicroLists();
       return Response.json({ live: true, message: null, items });

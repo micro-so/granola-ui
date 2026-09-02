@@ -1,5 +1,7 @@
 import type { Note } from "@/lib/data";
 import { activityDateLabel, formatClockTime, isoDate } from "@/lib/data";
+import { queryLocalEmailActivity } from "@/lib/local-email-activity";
+import { queryLocalIMessageActivity } from "@/lib/local-imessage-activity";
 import { asRefs, asString, getMicroClient, propertiesOf, type PrismRow } from "@/lib/micro";
 import { eventToNote } from "@/lib/micro-events";
 
@@ -14,15 +16,13 @@ const EVENT_SELECT = [
   "attendees.contact.photo_url",
 ];
 
-const DEMO_ACTIVITY_ENABLED = process.env.DEMO_ACTIVITY !== "false";
-const NIKOLA_EMAIL = "nikola@granola.so";
-
 type ActivityQuery = {
   personId?: string;
   companyId?: string;
   q?: string;
   email?: string;
   domain?: string;
+  domains?: string[];
 };
 
 type EventQueryParams = Parameters<
@@ -33,9 +33,15 @@ type EventFilter = NonNullable<EventQueryParams["query"]["filter"]>[number];
 function matchFilters(options: ActivityQuery): EventFilter[] {
   const name = options.q?.trim() ?? "";
   const email = options.email?.trim().toLowerCase() ?? "";
-  const domain = options.domain?.trim().toLowerCase().replace(/^@/, "") ?? "";
+  const domains = [...new Set([options.domain, ...(options.domains ?? [])])]
+    .map((domain) => domain?.trim().toLowerCase().replace(/^@/, "") ?? "")
+    .filter(Boolean);
   if (email) return [{ "attendees.contact.email": { "=": email } }];
-  if (domain) return [{ "attendees.contact.email": { contains: `@${domain}` } }];
+  if (domains.length > 0) {
+    return domains.map((domain) => ({
+      "attendees.contact.email": { contains: `@${domain}` },
+    }));
+  }
   if (options.personId && name.length >= 3) {
     return [{ "attendees.contact.full_name": { contains: name } }];
   }
@@ -108,56 +114,6 @@ function sortByStart(rows: PrismRow[], direction: "asc" | "desc") {
   });
 }
 
-function demoEmailActivity(options: ActivityQuery, now = new Date()): Note[] {
-  if (!DEMO_ACTIVITY_ENABLED || options.email?.trim().toLowerCase() !== NIKOLA_EMAIL) return [];
-
-  const rows = [
-    {
-      id: "nikola-re-london",
-      sender: "Nikola Otasevic",
-      subject: "Re: London this week",
-      millisecondsAgo: 5 * 60 * 60 * 1000,
-    },
-    {
-      id: "nikola-invitation",
-      sender: "Nikola Otasevic",
-      subject: "Invitation: Brett / Nikola @ Sep 2, 12:00 PM",
-      millisecondsAgo: 5 * 60 * 60 * 1000 + 12 * 60 * 1000,
-    },
-    {
-      id: "brett-re-london",
-      sender: "Brett Goldstein",
-      subject: "Re: London this week",
-      millisecondsAgo: 24 * 60 * 60 * 1000,
-    },
-    {
-      id: "sam-re-london",
-      sender: "Sam",
-      subject: "Re: London this week",
-      millisecondsAgo: 25 * 60 * 60 * 1000,
-    },
-  ];
-
-  return rows.map((row) => {
-    const occurredAt = new Date(now.getTime() - row.millisecondsAgo).toISOString();
-    return {
-      id: `demo-email-${row.id}`,
-      title: row.sender,
-      date: isoDate(occurredAt),
-      dateLabel: activityDateLabel(occurredAt),
-      time: formatClockTime(occurredAt),
-      personIds: options.personId ? [options.personId] : [],
-      companyId: "",
-      preview: row.subject,
-      kind: "email",
-      occurredAt,
-      source: "demo",
-      leadName: row.sender,
-      otherNames: [row.sender],
-    };
-  });
-}
-
 async function queryLatestEmail(options: ActivityQuery): Promise<Note | null> {
   const email = options.email?.trim().toLowerCase();
   if (!email || !options.personId) return null;
@@ -196,7 +152,6 @@ async function queryLatestEmail(options: ActivityQuery): Promise<Note | null> {
     kind: "email",
     occurredAt,
     source: "micro",
-    badge: "Latest email",
     leadName: options.q,
     otherNames: options.q ? [options.q] : [],
   };
@@ -207,10 +162,12 @@ export async function queryActivity(options: ActivityQuery) {
   if (filters.length === 0) return { items: [] as Note[], upcoming: [] as Note[] };
 
   const now = new Date().toISOString();
-  const [upcomingRows, pastRows, latestEmail] = await Promise.all([
+  const [upcomingRows, pastRows, latestEmail, localEmails, localMessages] = await Promise.all([
     queryMatchedEvents(filters, { start: { ">=": now } }, "asc", 20),
     queryMatchedEvents(filters, { start: { "<": now } }, "desc", 50),
     queryLatestEmail(options).catch(() => null),
+    queryLocalEmailActivity(options).catch(() => []),
+    queryLocalIMessageActivity(options).catch(() => []),
   ]);
 
   const upcoming = sortByStart(upcomingRows.filter((row) => eventMatchesPerson(row, options)), "asc")
@@ -222,13 +179,29 @@ export async function queryActivity(options: ActivityQuery) {
     .map((row) => toActivityNote(row, false))
     .filter((note): note is Note => note !== null)
     .slice(0, 50);
-  const emailItems = [...demoEmailActivity(options), ...(latestEmail ? [latestEmail] : [])];
-  const dedupedEmails = new Map(
-    emailItems.map((item) => [`${item.title.toLowerCase()}|${item.preview.toLowerCase()}`, item]),
-  );
-  const items = [...eventItems, ...dedupedEmails.values()]
-    .sort((left, right) => (right.occurredAt ?? right.date).localeCompare(left.occurredAt ?? left.date))
-    .slice(0, 50);
+  const latestAlreadyLocal =
+    latestEmail &&
+    localEmails.some((item) => {
+      if (item.preview.trim().toLowerCase() !== latestEmail.preview.trim().toLowerCase()) {
+        return false;
+      }
+      return (
+        Math.abs(
+          new Date(item.occurredAt ?? item.date).getTime() -
+            new Date(latestEmail.occurredAt ?? latestEmail.date).getTime(),
+        ) < 5_000
+      );
+    });
+  const emailItems = [
+    ...localEmails,
+    ...(latestEmail && !latestAlreadyLocal ? [latestEmail] : []),
+  ];
+  const items = [...eventItems, ...emailItems, ...localMessages]
+    .sort((left, right) =>
+      (right.occurredAt ?? right.date).localeCompare(
+        left.occurredAt ?? left.date,
+      ),
+    );
 
   return { items, upcoming };
 }

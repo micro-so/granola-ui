@@ -12,6 +12,7 @@ import {
   ListChecks,
   LockSimple,
   Note as NoteIcon,
+  PencilSimple,
   Pulse,
   ShareNetwork,
   Star,
@@ -25,12 +26,17 @@ import {
 } from "@/components/activity-comments";
 import { Avatar } from "@/components/avatar";
 import { FilterChip } from "@/components/chrome";
+import { FolderEditorDialog } from "@/components/folder-editor-dialog";
 import { FeedRowsSkeleton } from "@/components/loading-state";
 import { NoteGroups, NoteRow } from "@/components/note-row";
 import { ProfileFiles } from "@/components/profile-files";
 import { ProfileFrame, ProfileHeader } from "@/components/profile-frame";
 import { isVerifiedEntity, VerifiedBadge } from "@/components/verified-badge";
 import { colorFromId, type ProfileComment } from "@/lib/data";
+import {
+  useFolderProperties,
+  type FolderProperties,
+} from "@/lib/use-folder-properties";
 import { usePinnedProfiles } from "@/lib/use-pinned-profiles";
 import { useSpaceContext, useSpaceNotes, useSpaces } from "@/lib/use-spaces";
 import { useUpcoming } from "@/lib/use-upcoming";
@@ -78,15 +84,36 @@ export function SpacePage({ spaceId }: { spaceId: string }) {
         otherNames: event.peopleNames ?? [],
       }));
   }, [allUpcoming, people]);
-  const title =
+  const sourceTitle =
     spaceId === "my-notes"
       ? "My space"
       : spaces.find((space) => space.id === spaceId)?.name || "Space";
+  const { properties: folderProperties, saveProperties } = useFolderProperties(
+    `space:${spaceId}`,
+    {
+      name: sourceTitle,
+      description: "Granola space",
+      parentFolder: spaceId === "my-notes" ? "" : "My space",
+      subfolders: spaces
+        .filter((space) => space.parentFolderId === spaceId)
+        .map((space) => space.name),
+      sharing: "private",
+      folderType: "manual",
+      includeConnectedObjects: true,
+    },
+  );
+  const title = folderProperties.name;
+  const parentOptions = [
+    "My space",
+    ...spaces
+      .filter((space) => space.id !== spaceId)
+      .map((space) => space.name),
+  ];
 
   return (
     <ProfileFrame backHref="/" backLabel="Back to home">
       <ProfileHeader
-        name={spacesStatus === "loading" && title === "Space" ? "Loading…" : title}
+        name={spacesStatus === "loading" && sourceTitle === "Space" ? "Loading…" : title}
         actions={
           <div className="ml-auto">
             <FolderAddMenu onSelect={setTab} />
@@ -102,9 +129,15 @@ export function SpacePage({ spaceId }: { spaceId: string }) {
           </span>
         }
       >
-        <span>Granola space</span>
+        <span>{folderProperties.description || "Granola space"}</span>
       </ProfileHeader>
-      <FolderActions folderId={spaceId} name={title} />
+      <FolderActions
+        folderId={spaceId}
+        name={title}
+        editorProperties={folderProperties}
+        parentOptions={parentOptions}
+        onSaveProperties={saveProperties}
+      />
 
       <div className="mt-8 flex items-center gap-3">
         <div className="flex min-w-0 items-center gap-2 overflow-x-auto scrollbar-thin">
@@ -120,8 +153,8 @@ export function SpacePage({ spaceId }: { spaceId: string }) {
           <FolderTabChip tab="notes" active={tab} onChange={setTab} icon={<NoteIcon />}>
             Notes
           </FolderTabChip>
-          <FolderTabChip tab="files" active={tab} onChange={setTab} icon={<FilesIcon />}>
-            Files
+          <FolderTabChip tab="tasks" active={tab} onChange={setTab} icon={<ListChecks />}>
+            Tasks
           </FolderTabChip>
         </div>
         <FolderMoreMenu active={tab} onSelect={setTab} />
@@ -288,6 +321,7 @@ export function SpacePage({ spaceId }: { spaceId: string }) {
             notes={notes}
             sectionClassName="mt-6"
             showSectionTitles={false}
+            hideMeetingNotesBadge
           />
         )
       ) : null}
@@ -319,16 +353,25 @@ export function FolderActions({
   href = `/spaces/${folderId}`,
   favoriteId = `folder:${folderId}`,
   itemLabel = "folder",
+  editorProperties,
+  parentOptions = [],
+  teamScoped = false,
+  onSaveProperties,
 }: {
   folderId: string;
   name: string;
   href?: string;
   favoriteId?: string;
   itemLabel?: "folder" | "list";
+  editorProperties?: FolderProperties;
+  parentOptions?: string[];
+  teamScoped?: boolean;
+  onSaveProperties?: (properties: FolderProperties) => void;
 }) {
   const { isPinned, pinProfile, unpinProfile } = usePinnedProfiles();
   const favorite = isPinned(href);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -426,6 +469,19 @@ export function FolderActions({
 
         {open ? (
           <div className="absolute right-0 top-full mt-2 w-44 overflow-hidden rounded-xl border border-border bg-surface p-1.5 shadow-2xl">
+            {editorProperties && onSaveProperties ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setEditing(true);
+                }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] text-foreground hover:bg-hover"
+              >
+                <PencilSimple className="h-4 w-4" />
+                Edit folder
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => void copyLink()}
@@ -452,6 +508,15 @@ export function FolderActions({
         >
           {itemLabel === "list" ? "List link copied" : "Folder link copied"}
         </div>
+      ) : null}
+      {editing && editorProperties && onSaveProperties ? (
+        <FolderEditorDialog
+          properties={editorProperties}
+          parentOptions={parentOptions}
+          teamScoped={teamScoped}
+          onSave={onSaveProperties}
+          onClose={() => setEditing(false)}
+        />
       ) : null}
     </>
   );
@@ -536,7 +601,7 @@ export function FolderMoreMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const moreActive = active === "tasks" || active === "deals";
+  const moreActive = active === "files" || active === "deals";
 
   useEffect(() => {
     if (!open) return;
@@ -555,7 +620,7 @@ export function FolderMoreMenu({
   }, [open]);
 
   const options = [
-    { tab: "tasks" as const, label: "Tasks", icon: <ListChecks /> },
+    { tab: "files" as const, label: "Files", icon: <FilesIcon /> },
     { tab: "deals" as const, label: "Deals", icon: <Handshake /> },
   ];
 
@@ -568,7 +633,7 @@ export function FolderMoreMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute left-0 top-full z-30 mt-2 w-40 overflow-hidden rounded-xl border border-border bg-surface p-1.5 shadow-2xl"
+          className="absolute left-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-2xl"
         >
           {options.map((option) => (
             <button
@@ -579,9 +644,13 @@ export function FolderMoreMenu({
                 onSelect(option.tab);
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] text-foreground hover:bg-hover"
+              className={`flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] ${
+                active === option.tab
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-hover hover:text-foreground"
+              }`}
             >
-              <span className="text-muted-foreground [&>svg]:h-4 [&>svg]:w-4">{option.icon}</span>
+              <span className="[&>svg]:h-3.5 [&>svg]:w-3.5">{option.icon}</span>
               {option.label}
             </button>
           ))}

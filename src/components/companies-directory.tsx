@@ -31,7 +31,7 @@ export function CompaniesDirectory() {
           extraDomainCount: company.extraDomainCount,
           lastNoteLabel: company.lastNoteLabel,
           lastMeetingLabel: company.lastMeeting ? formatShortDate(company.lastMeeting) : company.lastNoteLabel,
-          summary: company.summary,
+          summary: company.about,
           lastInteractionLabel: company.lastInteraction ? formatShortDate(company.lastInteraction) : "—",
           relationshipStrength: company.relationshipStrength,
           noteCount: company.noteCount,
@@ -60,6 +60,7 @@ export function CompaniesDirectory() {
       }))}
       layout="directory"
       metricLabel={source === "micro" ? "Strength" : "Notes"}
+      summaryLabel="About"
       rows={rows}
     />
   );

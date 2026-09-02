@@ -8,7 +8,7 @@ import {
   type Company,
   type CompanyView,
 } from "@/lib/data";
-import { fetchJsonCached } from "@/lib/client-query-cache";
+import { fetchJsonCached, getCachedJson } from "@/lib/client-query-cache";
 import { useDataSource } from "@/lib/data-source";
 import { useMicroList } from "@/lib/use-micro-list";
 
@@ -26,6 +26,7 @@ export function useCompanies(options: { search?: string; viewId?: string; enable
     placeholder: placeholderCompanies,
     fallbackWhenEmpty: !options.viewId,
     enabled: options.enabled,
+    debounceMs: options.search ? 250 : 0,
   });
 }
 
@@ -36,12 +37,12 @@ export function useCompany(id: string) {
     company?: Company;
     message: string | null;
   }>({ id: "", message: null });
+  const url = `/api/companies?id=${encodeURIComponent(id)}`;
 
   useEffect(() => {
     if (!id || source === "placeholder") return;
 
     let cancelled = false;
-    const url = `/api/companies?id=${encodeURIComponent(id)}`;
     fetchJsonCached<{ items?: Company[]; live?: boolean; message?: string | null }>(url)
       .then((data) => {
         if (cancelled) return;
@@ -64,13 +65,26 @@ export function useCompany(id: string) {
     return () => {
       cancelled = true;
     };
-  }, [id, source]);
+  }, [id, source, url]);
 
   if (!id) return { source, company: undefined, status: "ready" as const, message: null };
   if (source === "placeholder") {
     return { source, company: companyById(id), status: "ready" as const, message: null };
   }
   if (result.id !== id) {
+    const cached = getCachedJson<{
+      items?: Company[];
+      live?: boolean;
+      message?: string | null;
+    }>(url);
+    if (cached) {
+      return {
+        source,
+        company: cached.items?.[0],
+        status: "ready" as const,
+        message: cached.message ?? null,
+      };
+    }
     return { source, company: undefined, status: "loading" as const, message: null };
   }
   return { source, company: result.company, status: "ready" as const, message: result.message };

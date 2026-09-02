@@ -5,6 +5,7 @@ import {
   getEditableRecord,
   updateEditableRecord,
 } from "@/lib/micro-editable";
+import { getLocalPersonOverride } from "@/lib/local-profile-overrides";
 import { getPerson, queryPeople, queryPeopleAtCompany } from "@/lib/micro-people";
 
 export const runtime = "nodejs";
@@ -15,6 +16,10 @@ export async function GET(request: NextRequest) {
   const viewId = request.nextUrl.searchParams.get("view")?.trim() || "";
   const companyId = request.nextUrl.searchParams.get("companyId")?.trim() || "";
   const domain = request.nextUrl.searchParams.get("domain")?.trim() || "";
+  const domains = (request.nextUrl.searchParams.get("domains") || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
   const name = request.nextUrl.searchParams.get("name")?.trim() || "";
   const page = Number(request.nextUrl.searchParams.get("page") || "1");
   const editor = request.nextUrl.searchParams.get("editor") === "1";
@@ -35,10 +40,12 @@ export async function GET(request: NextRequest) {
         return Response.json({ live: true, message: null, ...result });
       }
       const person = await getPerson(id);
+      const localOverride = person ? await getLocalPersonOverride(id) : {};
+      const resolvedPerson = person ? { ...person, ...localOverride } : null;
       return Response.json({
         live: true,
-        message: person ? null : "Person not found.",
-        items: person ? [person] : [],
+        message: resolvedPerson ? null : "Person not found.",
+        items: resolvedPerson ? [resolvedPerson] : [],
       });
     }
 
@@ -46,6 +53,7 @@ export async function GET(request: NextRequest) {
       const result = await queryPeopleAtCompany({
         companyId: companyId || undefined,
         domain: domain || undefined,
+        domains,
         name: name || undefined,
       });
       return Response.json({ live: true, message: null, ...result });

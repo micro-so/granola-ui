@@ -44,23 +44,6 @@ function collectEmails(value: unknown, out = new Set<string>()) {
   return out;
 }
 
-function looksLikeLink(value: unknown): boolean {
-  if (typeof value === "string") {
-    return /https?:\/\//i.test(value) || /zoom\.us|meet\.google|teams\.microsoft|webex\.com/i.test(value);
-  }
-  if (Array.isArray(value)) return value.some(looksLikeLink);
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    if ("uri" in record) return looksLikeLink(record.uri);
-    return Object.values(record).some(looksLikeLink);
-  }
-  return false;
-}
-
-function hasMeetingLink(properties: Record<string, unknown>) {
-  return looksLikeLink(properties.location) || looksLikeLink(properties.entry_points);
-}
-
 function hasMeetingNotes(properties: Record<string, unknown>) {
   return Boolean(
     asString(properties.summary).trim() ||
@@ -96,19 +79,15 @@ function isCalendarOwnerEvent(row: PrismRow, properties: Record<string, unknown>
 }
 
 function isSoloMeeting(properties: Record<string, unknown>, ownerId: string) {
-  const others = [...collectEmails(properties)].filter((email) => email !== CALENDAR_EMAIL);
-  if (others.length > 0) return false;
+  const attendees = asRefs(properties.attendees);
+  if (attendees.length === 0) return true;
 
-  const attendees = Array.isArray(properties.attendees) ? properties.attendees : [];
-  const otherAttendees = attendees.filter((attendee) => {
-    const id = refId(attendee);
-    const contactId = refId(
-      attendee && typeof attendee === "object" ? (attendee as { properties?: unknown }).properties : "",
-    );
-    if (ownerId && (id === ownerId || contactId === ownerId)) return false;
-    return true;
+  return !attendees.some((attendee) => {
+    const contact = attendee.properties?.contact;
+    const contactId = refId(contact);
+    if (ownerId && (attendee.id === ownerId || contactId === ownerId)) return false;
+    return !collectEmails(attendee).has(CALENDAR_EMAIL);
   });
-  return otherAttendees.length === 0;
 }
 
 function stillUpcoming(properties: Record<string, unknown>, now: Date) {
@@ -274,7 +253,7 @@ export async function queryUpcoming() {
     if (!event || !allowedDays.has(event.date)) continue;
 
     if (stillUpcoming(properties, now)) {
-      if (solo || hasMeetingLink(properties)) remaining.push(event);
+      remaining.push(event);
       continue;
     }
 

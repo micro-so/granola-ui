@@ -31,6 +31,9 @@ yarn-error.log*
 # env files
 .env*
 
+# local demo data
+/.local/
+
 # vercel
 .vercel
 

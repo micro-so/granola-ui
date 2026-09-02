@@ -25,6 +25,7 @@ export function useNotes(
       companyId: options.companyId,
       q: options.q,
       all: options.all ? "1" : undefined,
+      v: "4",
     },
     placeholder,
     enabled: options.enabled,

@@ -1,7 +1,8 @@
 "use client";
 
-import { CaretDown, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { CaretDown, MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
+import { CreatePropertyDialog } from "@/components/create-property-dialog";
 import type { Company, Person } from "@/lib/data";
 import type {
   EditableProperty,
@@ -75,6 +76,7 @@ export function ProfileEditorDialog({
   const [options, setOptions] = useState<Record<string, EditablePropertyOption[]>>({});
   const [loadingOptions, setLoadingOptions] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -106,11 +108,11 @@ export function ProfileEditorDialog({
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape" && !saving) onClose();
+      if (event.key === "Escape" && !saving && !createOpen) onClose();
     }
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [onClose, saving]);
+  }, [createOpen, onClose, saving]);
 
   const filteredFields = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -202,9 +204,9 @@ export function ProfileEditorDialog({
         onMouseDown={(event) => event.stopPropagation()}
         className="flex max-h-[calc(100vh-2.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-foreground/10 bg-surface shadow-2xl"
       >
-        <div className="shrink-0 border-b border-border px-7 py-5">
+        <div className="shrink-0 border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 id="profile-editor-title" className="text-[24px] font-medium tracking-[-0.02em] text-foreground">
+            <h2 id="profile-editor-title" className="text-[20px] font-medium tracking-[-0.015em] text-foreground">
               Edit {profileType === "person" ? "person" : "company"}
             </h2>
             <button
@@ -218,17 +220,27 @@ export function ProfileEditorDialog({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-7 py-6 scrollbar-thin">
-          <label className="mb-6 flex h-11 items-center gap-2.5 rounded-xl border border-border bg-hover px-3.5 focus-within:border-muted-foreground">
-            <MagnifyingGlass className="h-4 w-4 shrink-0 text-placeholder" />
-            <span className="sr-only">Search properties</span>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search properties"
-              className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-placeholder"
-            />
-          </label>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 scrollbar-thin">
+          <div className="mb-5 flex items-center gap-3">
+            <label className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-border bg-hover px-3.5 focus-within:border-[#b6cf3a]">
+              <MagnifyingGlass className="h-4 w-4 shrink-0 text-placeholder" />
+              <span className="sr-only">Search properties</span>
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search properties"
+                className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-placeholder"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-hover px-4 text-[14px] font-medium text-foreground hover:bg-muted"
+            >
+              <Plus className="h-4 w-4" weight="bold" />
+              Create
+            </button>
+          </div>
           {!fields ? (
             <div role="status" className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               {Array.from({ length: 8 }, (_, index) => (
@@ -243,10 +255,10 @@ export function ProfileEditorDialog({
               {groupedFields.map(([group, groupFields], groupIndex) => (
                 <section
                   key={group}
-                  className={groupIndex === 0 ? "pb-6" : "border-t border-border py-6"}
+                  className={groupIndex === 0 ? "pb-4" : "border-t border-border py-4"}
                 >
-                  <h3 className="mb-4 text-[16px] font-medium text-foreground">{group}</h3>
-                  <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2">
+                  <h3 className="mb-3 text-[15px] font-medium text-foreground">{group}</h3>
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
                     {groupFields.map((field) => (
                       <DynamicEditorField
                         key={field.slug}
@@ -271,7 +283,7 @@ export function ProfileEditorDialog({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2.5 border-t border-border bg-surface px-7 py-5">
+        <div className="flex shrink-0 items-center justify-end gap-2.5 border-t border-border bg-surface px-6 py-4">
           {error ? <p className="mr-auto max-w-[60%] text-[12px] text-[#ff9180]">{error}</p> : null}
           <button
             type="button"
@@ -290,6 +302,12 @@ export function ProfileEditorDialog({
           </button>
         </div>
       </div>
+      {createOpen ? (
+        <CreatePropertyDialog
+          objectLabel={profileType}
+          onClose={() => setCreateOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -311,7 +329,7 @@ function DynamicEditorField({
 }) {
   const wide = fieldIsWide(field);
   const controlClass =
-    "mt-2 w-full rounded-xl border border-border bg-hover px-4 py-3 text-[14px] text-foreground outline-none placeholder:text-placeholder focus:border-muted-foreground";
+    "mt-2 w-full rounded-xl border border-border bg-hover px-4 py-3 text-[14px] text-foreground outline-none placeholder:text-placeholder focus:border-[#b6cf3a]";
   const selected = listItems(value);
   const currentChoices = choices ?? selected.map((slug) => ({ slug, value: slug }));
 
@@ -325,26 +343,26 @@ function DynamicEditorField({
       </span>
 
       {field.type === "bool" ? (
-        <div className="relative">
+        <div className="relative mt-2">
           <select
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            className={`${controlClass} appearance-none pr-11`}
+            className="w-full appearance-none rounded-xl border border-border bg-hover px-4 py-3 pr-11 text-[14px] text-foreground outline-none focus:border-[#b6cf3a]"
           >
             <option value="">Unset</option>
             <option value="false">No</option>
             <option value="true">Yes</option>
           </select>
-          <CaretDown className="pointer-events-none absolute right-4 top-1/2 mt-1 h-3.5 w-3.5 text-muted-foreground" />
+          <CaretDown className="pointer-events-none absolute right-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         </div>
       ) : field.type === "select_str" ? (
-        <div className="relative">
+        <div className="relative mt-2">
           <select
             value={value}
             onFocus={onLoadChoices}
             onMouseDown={onLoadChoices}
             onChange={(event) => onChange(event.target.value)}
-            className={`${controlClass} appearance-none pr-11`}
+            className="w-full appearance-none rounded-xl border border-border bg-hover px-4 py-3 pr-11 text-[14px] text-foreground outline-none focus:border-[#b6cf3a]"
           >
             <option value="">{loadingChoices ? "Loading choices…" : "None"}</option>
             {currentChoices.map((option) => (
@@ -353,12 +371,12 @@ function DynamicEditorField({
               </option>
             ))}
           </select>
-          <CaretDown className="pointer-events-none absolute right-4 top-1/2 mt-1 h-3.5 w-3.5 text-muted-foreground" />
+          <CaretDown className="pointer-events-none absolute right-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         </div>
       ) : field.slug === "skills_and_interests" ? (
         <textarea
           value={value}
-          rows={3}
+          rows={5}
           placeholder="Type skills or interests, separated by commas"
           onChange={(event) => onChange(event.target.value)}
           className={`${controlClass} resize-y`}
@@ -426,7 +444,7 @@ function MultiSelectEditor({
 
   return (
     <div className="relative mt-2">
-      <div className="min-h-12 rounded-xl border border-border bg-hover p-3 focus-within:border-muted-foreground">
+      <div className="min-h-12 rounded-xl border border-border bg-hover p-3 focus-within:border-[#b6cf3a]">
         {selected.length > 0 ? (
           <div className="mb-2 flex flex-wrap gap-1">
             {selected.map((slug) => (

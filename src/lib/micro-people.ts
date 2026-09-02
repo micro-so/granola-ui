@@ -631,40 +631,81 @@ async function queryIdentityRows(filter: IdentityFilter, pages = 3) {
   return rows;
 }
 
+function rootDomains(values: Array<string | undefined>) {
+  const domains = [...new Set(values)]
+    .map((domain) => domain?.trim().toLowerCase().replace(/^@/, "") ?? "")
+    .filter(Boolean);
+  return domains.filter(
+    (domain) =>
+      !domains.some(
+        (candidate) =>
+          candidate !== domain && domain.endsWith(`.${candidate}`),
+      ),
+  );
+}
+
+function rowMatchesCompany(
+  row: PrismRow,
+  options: { domains?: string[]; name?: string },
+) {
+  const properties = propertiesOf(row);
+  const domains = options.domains ?? [];
+  const name = options.name?.trim().toLowerCase() ?? "";
+  const hasCompanyEmail =
+    domains.length > 0 &&
+    extractRealEmails(row, properties).some((email) => {
+      const candidateDomain = emailDomain(email);
+      return domains.some(
+        (domain) =>
+          candidateDomain === domain || candidateDomain.endsWith(`.${domain}`),
+      );
+    });
+  const hasCurrentCompany =
+    Boolean(name) &&
+    asRefs(properties.companies).some(
+      (company) =>
+        asString(company.properties?.name).trim().toLowerCase() === name,
+    );
+  return hasCompanyEmail || hasCurrentCompany;
+}
+
 export async function queryPeopleAtCompany(options: {
   companyId?: string;
   domain?: string;
+  domains?: string[];
   name?: string;
 }): Promise<{ items: Person[]; connectionCount: number }> {
-  let domain = options.domain?.trim().toLowerCase() ?? "";
+  let domains = rootDomains([options.domain, ...(options.domains ?? [])]);
   let name = options.name?.trim() ?? "";
 
-  if (options.companyId && (!domain || !name)) {
+  if (options.companyId && (domains.length === 0 || !name)) {
     const company = await getCompany(options.companyId, { fallback: false });
-    domain = domain || company?.domain?.toLowerCase() || "";
+    if (domains.length === 0) {
+      domains = rootDomains([company?.domain, ...(company?.domains ?? [])]);
+    }
     name = name || company?.name || "";
   }
 
   const filters: IdentityFilter[] = [];
-  if (domain) filters.push({ email_addresses: { contains: domain } });
-  if (name) {
-    filters.push({ "companies.name": { contains: name } });
-    filters.push({ "work_history.organization.name": { contains: name } });
+  for (const domain of domains) {
+    filters.push({ email_addresses: { contains: domain } });
   }
+  if (name) filters.push({ "companies.name": { contains: name } });
   const rows = (await Promise.all(filters.map((filter) => queryIdentityRows(filter)))).flat();
 
   const seen = new Set<string>();
   const seenNames = new Set<string>();
   const normalizedCompanyName = name.toLowerCase();
   const people = rows
-    .map((row) => mapPerson(row))
-    .filter((person): person is Person => {
+    .flatMap((row) => {
+      const person = mapPerson(row);
       const normalizedName = person?.name.trim().toLowerCase() ?? "";
-      if (!person || seen.has(person.id) || seenNames.has(normalizedName)) return false;
-      if (normalizedCompanyName && normalizedName === normalizedCompanyName) return false;
+      if (!person || seen.has(person.id) || seenNames.has(normalizedName)) return [];
+      if (normalizedCompanyName && normalizedName === normalizedCompanyName) return [];
+      if (!rowMatchesCompany(row, { domains, name })) return [];
       seen.add(person.id);
       seenNames.add(normalizedName);
-      return true;
+      return [person];
     })
     .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
 

@@ -139,12 +139,12 @@ export function usePerson(id: string) {
   const [person, setPerson] = useState<Person | undefined>();
   const [loadedId, setLoadedId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const url = `/api/people?id=${encodeURIComponent(id)}&v=2`;
 
   useEffect(() => {
     if (!id || source === "placeholder") return;
 
     let cancelled = false;
-    const url = `/api/people?id=${encodeURIComponent(id)}`;
     fetchJsonCached<{ items?: Person[]; message?: string | null }>(url)
       .then((data) => {
         if (cancelled) return;
@@ -162,13 +162,22 @@ export function usePerson(id: string) {
     return () => {
       cancelled = true;
     };
-  }, [id, source]);
+  }, [id, source, url]);
 
   if (!id) return { source, person: undefined, status: "ready" as const, message: null };
   if (source === "placeholder") {
     return { source, person: personById(id), status: "ready" as const, message: null };
   }
   if (loadedId !== id) {
+    const cached = getCachedJson<{ items?: Person[]; message?: string | null }>(url);
+    if (cached) {
+      return {
+        source,
+        person: cached.items?.[0],
+        status: "ready" as const,
+        message: cached.message ?? null,
+      };
+    }
     return { source, person: undefined, status: "loading" as const, message: null };
   }
   return { source, person, status: "ready" as const, message };
@@ -177,6 +186,7 @@ export function usePerson(id: string) {
 export function useCompanyConnections(options: {
   companyId: string;
   domain?: string;
+  domains?: string[];
   name?: string;
   enabled?: boolean;
 }) {
@@ -189,14 +199,15 @@ export function useCompanyConnections(options: {
   const query = new URLSearchParams({ companyId: options.companyId });
   query.set("identityType", "human");
   if (options.domain) query.set("domain", options.domain);
+  if (options.domains?.length) query.set("domains", options.domains.join(","));
   if (options.name) query.set("name", options.name);
   const queryString = query.toString();
+  const url = `/api/people?${queryString}`;
 
   useEffect(() => {
     if (source === "placeholder" || !enabled || !options.companyId) return;
 
     let cancelled = false;
-    const url = `/api/people?${queryString}`;
     fetchJsonCached<{
           items?: Person[];
           connectionCount?: number;
@@ -218,12 +229,24 @@ export function useCompanyConnections(options: {
     return () => {
       cancelled = true;
     };
-  }, [enabled, options.companyId, queryString, source]);
+  }, [enabled, options.companyId, queryString, source, url]);
 
   if (source === "placeholder") {
     return { items: placeholder, connectionCount: placeholder.length, status: "ready" as const };
   }
   if (!enabled || !options.companyId || loadedKey !== queryString) {
+    const cached = getCachedJson<{
+      items?: Person[];
+      connectionCount?: number;
+    }>(url);
+    if (enabled && options.companyId && cached) {
+      const next = cached.items ?? [];
+      return {
+        items: next,
+        connectionCount: cached.connectionCount ?? next.length,
+        status: "ready" as const,
+      };
+    }
     return { items: [], connectionCount: 0, status: "loading" as const };
   }
   return { items, connectionCount, status: "ready" as const };

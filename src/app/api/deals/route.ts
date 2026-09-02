@@ -1,32 +1,29 @@
 import { NextRequest } from "next/server";
 import { credentialsPayload, failedPayload, missingCredentials } from "@/lib/micro";
-import { queryNotes } from "@/lib/micro-notes";
+import { queryProfileDeals } from "@/lib/micro-lists";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   const personId = request.nextUrl.searchParams.get("personId")?.trim() || "";
   const companyId = request.nextUrl.searchParams.get("companyId")?.trim() || "";
-  const q = request.nextUrl.searchParams.get("q")?.trim() || "";
-  const all = request.nextUrl.searchParams.get("all") === "1";
 
+  if (!personId && !companyId) {
+    return Response.json(
+      { message: "A personId or companyId is required." },
+      { status: 400 },
+    );
+  }
   if (missingCredentials()) {
-    return credentialsPayload("Add Micro credentials to load documents.");
+    return credentialsPayload("Add Micro credentials to load deals.");
   }
 
   try {
-    const result = await queryNotes({
+    const items = await queryProfileDeals({
       personId: personId || undefined,
       companyId: companyId || undefined,
-      q: q || undefined,
-      all,
     });
-    return Response.json({
-      live: true,
-      provider: "micro",
-      message: null,
-      items: result.items,
-    });
+    return Response.json({ live: true, message: null, items });
   } catch (error) {
     return failedPayload(error);
   }

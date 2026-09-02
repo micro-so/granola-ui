@@ -47,6 +47,7 @@ export function DirectoryPage({
   onLoadMore,
   layout = "directory",
   metricLabel = "Notes",
+  summaryLabel = "Summary",
 }: {
   title: string;
   entityLabel: string;
@@ -63,6 +64,7 @@ export function DirectoryPage({
   onLoadMore?: () => void;
   layout?: "default" | "people" | "directory";
   metricLabel?: "Notes" | "Strength";
+  summaryLabel?: string;
 }) {
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -129,7 +131,7 @@ export function DirectoryPage({
             <div>{entityLabel}</div>
             {wide ? (
               <>
-                <div>Summary</div>
+                <div>{summaryLabel}</div>
                 <div>Last interaction</div>
               </>
             ) : null}

@@ -100,8 +100,7 @@ export function ActivityCommentRow({
             <span className="truncate text-[14px] leading-4 text-foreground">{comment.author}</span>
           </span>
           <span className="shrink-0 whitespace-nowrap text-[12.5px] text-muted-foreground">
-            {displayDate ? `${displayDate}, ` : ""}
-            <NoteTime time={displayTime} />
+            {displayDate || <NoteTime time={displayTime} />}
           </span>
         </div>
         <div className="mt-2 whitespace-pre-wrap break-words text-[13.5px] leading-5 text-foreground/90">

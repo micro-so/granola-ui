@@ -29,7 +29,14 @@ const NOTE_SELECT_BASIC = [
 
 function isHidden(properties: Record<string, unknown>) {
   const documentType = asString(properties.document_type);
-  return documentType === "snippet" || documentType === "prompt_template";
+  const meetingType = asString(properties.meeting_doc_type);
+  return (
+    documentType === "snippet" ||
+    documentType === "prompt_template" ||
+    meetingType === "meeting_notes" ||
+    meetingType === "summary" ||
+    meetingType === "transcript"
+  );
 }
 
 function noteKind(properties: Record<string, unknown>): Note["kind"] {
@@ -37,7 +44,7 @@ function noteKind(properties: Record<string, unknown>): Note["kind"] {
   if (meetingType === "meeting_notes" || meetingType === "transcript" || meetingType === "summary") {
     return "meet";
   }
-  return "chat";
+  return "document";
 }
 
 function noteBadge(properties: Record<string, unknown>) {
@@ -134,24 +141,33 @@ async function queryDocumentPages(options: {
   select: string[];
   tokens: string[];
   personId?: string;
+  companyId?: string;
   pages: number;
 }) {
   const micro = getMicroClient();
   const titleFilters = options.tokens.map((token) => ({ title: { contains: token } }));
   const rows: PrismRow[] = [];
 
-  if (options.personId) {
+  const personId = options.personId;
+  const companyId = options.companyId;
+  const relationFilter: Record<string, { in: string[] }> | null = personId
+    ? { people: { in: [personId] } }
+    : companyId
+      ? { companies: { in: [companyId] } }
+      : null;
+  if (relationFilter) {
     const linked = await micro.prism.objects.documents
       .query({
         query: {
           select: options.select,
           sort: [{ last_updated_at: "desc" }],
           limit: 50,
-          filter: [{ people: { in: [options.personId] } }],
+          filter: [relationFilter],
         },
       })
       .catch(() => null);
     rows.push(...((linked?.data ?? []) as PrismRow[]));
+    return rows;
   }
 
   if (titleFilters.length === 0) {
@@ -204,6 +220,7 @@ export async function queryNotes(options: {
       select,
       tokens,
       personId: options.personId,
+      companyId: options.companyId,
       pages,
     });
     const seen = new Set<string>();
@@ -218,6 +235,7 @@ export async function queryNotes(options: {
       select: NOTE_SELECT_BASIC,
       tokens,
       personId: options.personId,
+      companyId: options.companyId,
       pages,
     });
     const seen = new Set<string>();

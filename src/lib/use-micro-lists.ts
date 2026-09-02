@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { fetchJsonCached } from "@/lib/client-query-cache";
 import { useDataSource } from "@/lib/data-source";
-import type { MicroListDefinition, MicroListRecord } from "@/lib/micro-lists";
+import type {
+  MicroListDefinition,
+  MicroListRecord,
+  ProfileFolderMembership,
+} from "@/lib/micro-lists";
 import { useMicroList } from "@/lib/use-micro-list";
 
 export function useMicroLists() {
@@ -21,7 +25,7 @@ export function useMicroListRecords(id: string) {
     items: MicroListRecord[];
     message: string | null;
   }>({ id: "", list: null, items: [], message: null });
-  const url = `/api/micro-lists?id=${encodeURIComponent(id)}`;
+  const url = `/api/micro-lists?id=${encodeURIComponent(id)}&v=5`;
 
   useEffect(() => {
     if (source === "placeholder" || !id) return;
@@ -76,4 +80,23 @@ export function useMicroListRecords(id: string) {
     status: "ready" as const,
     message: result.message,
   };
+}
+
+export function useProfileFolderMemberships(options: {
+  personId?: string;
+  companyId?: string;
+  enabled?: boolean;
+}) {
+  return useMicroList<ProfileFolderMembership>({
+    path: "/api/micro-lists",
+    params: {
+      personId: options.personId,
+      companyId: options.companyId,
+      v: "1",
+    },
+    placeholder: [],
+    enabled:
+      (options.enabled ?? true) &&
+      Boolean(options.personId || options.companyId),
+  });
 }

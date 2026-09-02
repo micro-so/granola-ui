@@ -1,8 +1,19 @@
 "use client";
 
-import { Check, Files as FilesIcon, IdentificationCard, ListChecks, Note as NoteIcon, Pulse, Users, X } from "@phosphor-icons/react";
+import {
+  Check,
+  DotsThree,
+  Files as FilesIcon,
+  Handshake,
+  IdentificationCard,
+  ListChecks,
+  Note as NoteIcon,
+  Pulse,
+  Users,
+  X,
+} from "@phosphor-icons/react";
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityCommentComposer,
   ActivityCommentRow,
@@ -21,8 +32,16 @@ import {
   type ProfileTask,
 } from "@/lib/data";
 import { useDataSource } from "@/lib/data-source";
+import type { MicroListRecord } from "@/lib/micro-lists";
 
-export type ProfileTab = "profile" | "activity" | "notes" | "files" | "tasks" | "people";
+export type ProfileTab =
+  | "profile"
+  | "activity"
+  | "notes"
+  | "files"
+  | "tasks"
+  | "deals"
+  | "people";
 
 export function NotesFeed({
   profile,
@@ -30,6 +49,7 @@ export function NotesFeed({
   documents,
   upcoming = [],
   tasks = [],
+  deals = [],
   comments = [],
   people = [],
   peopleCircles = false,
@@ -37,6 +57,7 @@ export function NotesFeed({
   loading = false,
   documentsLoading = false,
   tasksLoading = false,
+  dealsLoading = false,
   commentsLoading = false,
   commentsPosting = false,
   onSubmitComment,
@@ -48,6 +69,7 @@ export function NotesFeed({
   documents?: Note[];
   upcoming?: Note[];
   tasks?: ProfileTask[];
+  deals?: MicroListRecord[];
   comments?: ProfileComment[];
   people?: Person[];
   peopleCircles?: boolean;
@@ -55,6 +77,7 @@ export function NotesFeed({
   loading?: boolean;
   documentsLoading?: boolean;
   tasksLoading?: boolean;
+  dealsLoading?: boolean;
   commentsLoading?: boolean;
   commentsPosting?: boolean;
   onSubmitComment?: (body: string) => Promise<void>;
@@ -86,19 +109,12 @@ export function NotesFeed({
   }, [mineId, notes, scope]);
 
   const allDocuments = documents ?? notes;
-  const transcriptAndSummaryDocuments = useMemo(
-    () =>
-      allDocuments.filter(
-        (note) => note.badge === "Transcript" || note.badge === "Meeting summary",
-      ),
-    [allDocuments],
-  );
   const visibleDocuments = useMemo(() => {
-    if (scope !== "me" || !mineId) return transcriptAndSummaryDocuments;
-    return transcriptAndSummaryDocuments.filter(
+    if (scope !== "me" || !mineId) return allDocuments;
+    return allDocuments.filter(
       (note) => note.personIds.length === 0 || note.personIds.includes(mineId),
     );
-  }, [mineId, scope, transcriptAndSummaryDocuments]);
+  }, [allDocuments, mineId, scope]);
 
   const visibleUpcoming = useMemo(() => {
     if (scope !== "me" || !mineId) return upcoming;
@@ -136,10 +152,6 @@ export function NotesFeed({
               <NoteIcon className="h-3.5 w-3.5" />
               Notes
             </FilterChip>
-            <FilterChip active={tab === "files"} quiet onClick={() => setTab("files")}>
-              <FilesIcon className="h-3.5 w-3.5" />
-              Files
-            </FilterChip>
             <FilterChip active={tab === "tasks"} quiet onClick={() => setTab("tasks")}>
               <ListChecks className="h-3.5 w-3.5" />
               Tasks
@@ -150,8 +162,12 @@ export function NotesFeed({
                 People
               </FilterChip>
             ) : null}
+            {profile ? <ProfileMoreMenu active={tab} onSelect={setTab} /> : null}
           </div>
-          {tab === "profile" || tab === "people" || tab === "files" ? null : (
+          {tab === "profile" ||
+          tab === "people" ||
+          tab === "files" ||
+          tab === "deals" ? null : (
             <div className="flex shrink-0 items-center gap-1">
               <FilterChip active={scope === "all"} quiet onClick={() => setScope("all")}>
                 All
@@ -226,7 +242,12 @@ export function NotesFeed({
         ) : visibleDocuments.length === 0 ? (
           <div className="py-10 text-[13px] text-muted-foreground">No docs yet.</div>
         ) : (
-          <NoteGroups notes={visibleDocuments} peopleCircles={peopleCircles} showSectionTitles={false} />
+          <NoteGroups
+            notes={visibleDocuments}
+            peopleCircles={peopleCircles}
+            showSectionTitles={false}
+            hideMeetingNotesBadge
+          />
         )
       ) : null}
 
@@ -260,6 +281,16 @@ export function NotesFeed({
         )
       ) : null}
 
+      {tab === "deals" ? (
+        dealsLoading && deals.length === 0 ? (
+          <FeedRowsSkeleton rows={3} />
+        ) : deals.length === 0 ? (
+          <div className="py-10 text-[13px] text-muted-foreground">No deals yet.</div>
+        ) : (
+          <ProfileDealList deals={deals} />
+        )
+      ) : null}
+
       {tab === "people" ? (
         people.length === 0 ? (
           <div className="py-10 text-[13px] text-muted-foreground">No people yet.</div>
@@ -287,6 +318,128 @@ export function NotesFeed({
             ))}
           </div>
         )
+      ) : null}
+    </div>
+  );
+}
+
+function ProfileDealList({ deals }: { deals: MicroListRecord[] }) {
+  return (
+    <div className="mt-6 flex flex-col">
+      {deals.map((deal) => (
+        <ProfileDealRow key={deal.id} deal={deal} />
+      ))}
+    </div>
+  );
+}
+
+function ProfileDealRow({ deal }: { deal: MicroListRecord }) {
+  const hasRelatedEntity = Boolean(deal.avatarName || deal.photoUrl);
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg px-1 py-2.5 hover:bg-hover">
+      {hasRelatedEntity ? (
+        <Avatar
+          name={deal.avatarName || deal.name}
+          color={deal.color}
+          photoUrl={deal.photoUrl}
+          rounded="md"
+          size={28}
+        />
+      ) : (
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-hover text-muted-foreground">
+          <Handshake className="h-4 w-4" />
+        </span>
+      )}
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5 text-[14px] font-medium text-foreground">
+          <span className="truncate">{deal.name}</span>
+          {deal.sourceLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={deal.sourceLogoUrl}
+              alt="Attio"
+              className="h-4 w-4 shrink-0 rounded-[4px] object-cover"
+            />
+          ) : null}
+        </div>
+        <div className="truncate text-[12.5px] text-muted-foreground">
+          {deal.subtitle || "-"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfileMoreMenu({
+  active,
+  onSelect,
+}: {
+  active: ProfileTab;
+  onSelect: (tab: ProfileTab) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const moreActive = active === "files" || active === "deals";
+
+  useEffect(() => {
+    if (!open) return;
+    function close(event: PointerEvent) {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  const options = [
+    { tab: "files" as const, label: "Files", icon: <FilesIcon /> },
+    { tab: "deals" as const, label: "Deals", icon: <Handshake /> },
+  ];
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <FilterChip
+        active={moreActive}
+        quiet
+        onClick={() => setOpen((current) => !current)}
+      >
+        <DotsThree className="h-3.5 w-3.5" weight="bold" />
+        More
+      </FilterChip>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute left-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-2xl"
+        >
+          {options.map((option) => (
+            <button
+              key={option.tab}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onSelect(option.tab);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] ${
+                active === option.tab
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-hover hover:text-foreground"
+              }`}
+            >
+              <span className="[&>svg]:h-3.5 [&>svg]:w-3.5">
+                {option.icon}
+              </span>
+              {option.label}
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   );

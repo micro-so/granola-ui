@@ -1,18 +1,21 @@
 "use client";
 
-import { EnvelopeSimple, MapPin } from "@phosphor-icons/react";
+import { EnvelopeSimple, MapPin, Phone } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { ProfilePageSkeleton } from "@/components/loading-state";
 import { NotesFeed, type ProfileTab } from "@/components/notes-feed";
 import { PersonProfile } from "@/components/person-profile";
 import { ProfileActionsMenu } from "@/components/profile-actions-menu";
+import { ProfileFolderMenu } from "@/components/profile-folder-menu";
 import { ProfileFrame, ProfileHeader, ProfileMeta } from "@/components/profile-frame";
 import { isVerifiedEntity, VerifiedBadge } from "@/components/verified-badge";
 import { includePersonId, meId } from "@/lib/data";
 import { useActivity } from "@/lib/use-activity";
 import { useCompanies, useCompany } from "@/lib/use-companies";
 import { useComments } from "@/lib/use-comments";
+import { useDeals } from "@/lib/use-deals";
+import { useProfileFolderMemberships } from "@/lib/use-micro-lists";
 import { useNotes } from "@/lib/use-notes";
 import { usePerson } from "@/lib/use-people";
 import { socialLinks } from "@/lib/social";
@@ -41,6 +44,15 @@ export function PersonPanel({ personId }: { personId: string }) {
     q: person?.name,
     enabled: tab === "tasks",
   });
+  const { items: deals, status: dealsStatus } = useDeals({
+    personId,
+    enabled: tab === "deals",
+  });
+  const { items: folders, status: foldersStatus } =
+    useProfileFolderMemberships({
+      personId,
+      enabled: Boolean(person),
+    });
   const { items: activity, upcoming: activityUpcoming, status: activityStatus } = useActivity({
     personId,
     q: person?.name,
@@ -106,12 +118,20 @@ export function PersonPanel({ personId }: { personId: string }) {
         }
         socials={socialLinks(person)}
         contact={
-          person.email ? (
-            <ProfileMeta href={`mailto:${person.email}`} external>
-              <EnvelopeSimple className="h-3.5 w-3.5" />
-              {person.email}
-            </ProfileMeta>
-          ) : null
+          <>
+            {person.email ? (
+              <ProfileMeta href={`mailto:${person.email}`} external>
+                <EnvelopeSimple className="h-3.5 w-3.5" />
+                {person.email}
+              </ProfileMeta>
+            ) : null}
+            {person.phone ? (
+              <ProfileMeta href={`tel:${person.phone.replace(/\D/g, "")}`}>
+                <Phone className="h-3.5 w-3.5" />
+                {person.phone}
+              </ProfileMeta>
+            ) : null}
+          </>
         }
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -133,6 +153,10 @@ export function PersonPanel({ personId }: { personId: string }) {
               {person.location}
             </span>
           ) : null}
+          <ProfileFolderMenu
+            folders={folders}
+            loading={foldersStatus === "loading"}
+          />
         </div>
       </ProfileHeader>
       <NotesFeed
@@ -149,12 +173,14 @@ export function PersonPanel({ personId }: { personId: string }) {
         documents={documents}
         upcoming={upcoming}
         tasks={tasks}
+        deals={deals}
         comments={comments}
         peopleCircles
         mineId={mineId}
         loading={activityStatus === "loading"}
         documentsLoading={documentsStatus === "loading"}
         tasksLoading={tasksStatus === "loading"}
+        dealsLoading={dealsStatus === "loading"}
         commentsLoading={commentsStatus === "loading"}
         commentsPosting={commentsPosting}
         onSubmitComment={addComment}

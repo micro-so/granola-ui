@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import type { Note } from "@/lib/data";
 import { isoDate } from "@/lib/data";
 import { hasGranolaCredentials, queryGranolaNotes } from "@/lib/granola";
+import { groupAdjacentMessages } from "@/lib/group-activity-messages";
 import { credentialsPayload, failedPayload, missingCredentials } from "@/lib/micro";
 import { queryActivity } from "@/lib/micro-activity";
 import { getCompany } from "@/lib/micro-companies";
@@ -22,12 +23,14 @@ function mergePastActivity(microItems: Note[], granolaItems: Note[]) {
   for (const note of microItems.filter((item) => item.kind === "meet")) {
     meetings.set(activityKey(note), note);
   }
-  const emails = microItems.filter((item) => item.kind === "email");
-  return [...meetings.values(), ...emails]
+  const messages = microItems.filter(
+    (item) => item.kind === "email" || item.kind === "chat",
+  );
+  const sorted = [...meetings.values(), ...messages]
     .sort((left, right) =>
       (right.occurredAt || right.date).localeCompare(left.occurredAt || left.date),
-    )
-    .slice(0, 50);
+    );
+  return groupAdjacentMessages(sorted).slice(0, 50);
 }
 
 export async function GET(request: NextRequest) {
@@ -36,6 +39,10 @@ export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim() || "";
   const email = request.nextUrl.searchParams.get("email")?.trim() || "";
   const domain = request.nextUrl.searchParams.get("domain")?.trim() || "";
+  const domains = (request.nextUrl.searchParams.get("domains") || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
 
   const microMissing = missingCredentials();
   if (microMissing && !hasGranolaCredentials()) {
@@ -50,6 +57,7 @@ export async function GET(request: NextRequest) {
         q: q || undefined,
         email: email || undefined,
         domain: domain || undefined,
+        domains,
       });
   const granolaPromise =
     hasGranolaCredentials() && (personId || companyId)

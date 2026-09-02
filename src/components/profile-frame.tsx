@@ -93,7 +93,7 @@ export function ProfileHeader({
       <div className="flex items-center gap-3">
         {avatar}
         <div className="flex min-w-0 items-center gap-1.5">
-          <h1 className="truncate font-serif text-[28px] font-normal leading-none tracking-[-0.02em] text-heading">
+          <h1 className="truncate py-0.5 font-serif text-[28px] font-normal leading-[1.15] tracking-[-0.02em] text-heading">
             {name}
           </h1>
           {nameAdornment}

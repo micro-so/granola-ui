@@ -82,6 +82,7 @@ type WarmProfile = {
   name: string;
   email?: string;
   domain?: string;
+  domains?: string[];
 };
 
 function prewarmProfileTabs(collection: "people" | "companies", profile: WarmProfile) {
@@ -91,14 +92,27 @@ function prewarmProfileTabs(collection: "people" | "companies", profile: WarmPro
 
   const notes = new URLSearchParams(scope);
   notes.set("all", "1");
+  notes.set("v", "4");
   prefetchJson(`/api/notes?${notes.toString()}`);
   prefetchJson(`/api/tasks?${scope.toString()}`);
+  const deals = new URLSearchParams(scope);
+  deals.delete("q");
+  deals.set("v", "2");
+  prefetchJson(`/api/deals?${deals.toString()}`);
 
   const activity = new URLSearchParams(scope);
   if (collection === "people" && profile.email) activity.set("email", profile.email);
   if (collection === "companies" && profile.domain) activity.set("domain", profile.domain);
-  activity.set("v", "2");
+  if (collection === "companies" && profile.domains?.length) {
+    activity.set("domains", profile.domains.join(","));
+  }
+  activity.set("v", "17");
   prefetchJson(`/api/activity?${activity.toString()}`);
+  const imessage = new URLSearchParams(activity);
+  imessage.delete("email");
+  imessage.delete("q");
+  imessage.set("v", "3");
+  prefetchJson(`/api/imessage-activity?${imessage.toString()}`);
 }
 
 function NavRow({
@@ -188,7 +202,9 @@ export function GranolaShell({ children }: { children: ReactNode }) {
         if (!match) continue;
         const collection = match[1] === "people" ? "people" : "companies";
         const id = match[2];
-        const endpoint = `/api/${collection}?id=${encodeURIComponent(id)}`;
+        const endpoint = `/api/${collection}?id=${encodeURIComponent(id)}${
+          collection === "people" ? "&v=2" : ""
+        }`;
         void fetchJsonCached<{
           items?: WarmProfile[];
         }>(endpoint).then((data) => {
@@ -202,6 +218,7 @@ export function GranolaShell({ children }: { children: ReactNode }) {
             identityType: "human",
           });
           if (profile.domain) query.set("domain", profile.domain);
+          if (profile.domains?.length) query.set("domains", profile.domains.join(","));
           if (profile.name) query.set("name", profile.name);
           prefetchJson(`/api/people?${query.toString()}`);
         }).catch(() => undefined);
