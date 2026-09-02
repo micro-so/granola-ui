@@ -8,6 +8,11 @@ export type CompanyView = {
   name: string;
 };
 
+/** Micro view IDs are UUIDs; placeholder chips use ids like "all" / "met". */
+export function isMicroViewId(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 export const placeholderPeopleViews: PeopleView[] = [
   { id: "all", name: "All People" },
   { id: "met", name: "People I met" },

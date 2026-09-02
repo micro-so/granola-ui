@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { DirectoryPage } from "@/components/directory-page";
-import { formatShortDate } from "@/lib/data";
+import { formatShortDate, isMicroViewId } from "@/lib/data";
 import { usePeople, usePeopleViews } from "@/lib/use-people";
 import { useStoredString } from "@/lib/use-stored-string";
 
@@ -13,10 +13,12 @@ export function PeopleDirectory() {
   const [viewId, setViewId] = useStoredString(VIEW_STORAGE_KEY);
   const { items: views, source } = usePeopleViews();
   const selectedViewId = views.some((view) => view.id === viewId) ? viewId : (views[0]?.id ?? "");
+  // Don't send placeholder chip ids ("all") to Micro — only real view UUIDs.
+  const microViewId = source === "micro" && isMicroViewId(selectedViewId) ? selectedViewId : source === "placeholder" ? selectedViewId : "";
   const { items, status, message, hasMore, loadingMore, loadMore } = usePeople({
     search,
-    viewId: selectedViewId,
-    enabled: source === "placeholder" || Boolean(selectedViewId) || Boolean(search),
+    viewId: microViewId,
+    enabled: source === "placeholder" || source === "micro" || Boolean(search),
   });
 
   const rows = useMemo(

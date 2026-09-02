@@ -22,6 +22,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { siClaude, siCursor } from "simple-icons/icons";
 import { Avatar } from "@/components/avatar";
 import { fetchJsonCached, prefetchJson } from "@/lib/client-query-cache";
+import { isMicroViewId } from "@/lib/data";
 import { useDataSource, type DataSource } from "@/lib/data-source";
 import { usePinnedProfiles } from "@/lib/use-pinned-profiles";
 import { useMicroLists } from "@/lib/use-micro-lists";
@@ -193,8 +194,12 @@ export function GranolaShell({ children }: { children: ReactNode }) {
           window.localStorage.getItem("granola-ui:people-view") || peopleViews.items?.[0]?.id;
         const companyView =
           window.localStorage.getItem("granola-ui:companies-view") || companyViews.items?.[0]?.id;
-        if (peopleView) prefetchJson(`/api/people?view=${encodeURIComponent(peopleView)}`);
-        if (companyView) prefetchJson(`/api/companies?view=${encodeURIComponent(companyView)}`);
+        if (peopleView && isMicroViewId(peopleView)) {
+          prefetchJson(`/api/people?view=${encodeURIComponent(peopleView)}`);
+        }
+        if (companyView && isMicroViewId(companyView)) {
+          prefetchJson(`/api/companies?view=${encodeURIComponent(companyView)}`);
+        }
       }).catch(() => undefined);
 
       for (const pinned of pinnedProfiles) {

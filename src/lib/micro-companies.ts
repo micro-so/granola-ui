@@ -1,5 +1,5 @@
 import type { Company, CompanyView } from "@/lib/data";
-import { colorFromId, formatShortDate, isoDate } from "@/lib/data";
+import { colorFromId, formatShortDate, isoDate, isMicroViewId } from "@/lib/data";
 import {
   asSummary,
   asString,
@@ -120,7 +120,8 @@ type CompaniesPage = {
 };
 
 export async function queryCompanies(options: { q?: string; viewId?: string }): Promise<CompaniesPage> {
-  if (options.viewId) {
+  // Placeholder UI uses ids like "all"; only real Micro view UUIDs hit /views/:id.
+  if (options.viewId && isMicroViewId(options.viewId)) {
     return queryCompaniesByView(options);
   }
 

@@ -1,5 +1,5 @@
 import type { PeopleView, Person, ProfileHistoryItem } from "@/lib/data";
-import { colorFromId, formatShortDate, isoDate } from "@/lib/data";
+import { colorFromId, formatShortDate, isoDate, isMicroViewId } from "@/lib/data";
 import {
   asSummary,
   asRefs,
@@ -492,7 +492,8 @@ export async function queryPeople(options: { page?: number; q?: string; viewId?:
     }
   }
 
-  if (options.viewId) {
+  // Placeholder UI uses ids like "all"; only real Micro view UUIDs hit /views/:id.
+  if (options.viewId && isMicroViewId(options.viewId)) {
     return queryPeopleByView(options);
   }
 

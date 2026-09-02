@@ -260,7 +260,7 @@ export async function queryGranolaSpaceContext(folderId?: string) {
       }
     }
 
-    const mine = normalized(process.env.MICRO_ME_EMAIL || "brett@micro.so");
+    const mine = normalized(process.env.MICRO_ME_EMAIL);
     const peopleByEmail = new Map<string, GranolaSpacePerson>();
     for (const note of details) {
       for (const person of [note.owner, ...note.attendees]) {
@@ -366,7 +366,7 @@ function toNote(note: GranolaNote): Note {
   const occurredAt =
     note.calendar_event?.scheduled_start_time ||
     note.created_at;
-  const mine = normalized(process.env.MICRO_ME_EMAIL || "brett@micro.so");
+  const mine = normalized(process.env.MICRO_ME_EMAIL);
   const ownerEmail = normalized(note.owner.email);
   const attendees = note.attendees.filter(
     (person) => {

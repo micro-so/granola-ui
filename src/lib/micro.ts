@@ -1,20 +1,25 @@
 import { isoDate } from "@/lib/data";
 import Micro from "@micro-so/sdk";
 
+function env(name: string) {
+  // Dynamic lookup so Next.js 16 does not inline a stale empty value from .env.
+  return process.env[name]?.trim() || undefined;
+}
+
 export function missingCredentials() {
-  return !process.env.MICRO_API_KEY || !process.env.MICRO_TEAM_ID;
+  return !env("MICRO_API_KEY") || !env("MICRO_TEAM_ID");
 }
 
 export function getMicroClient() {
-  const apiKey = process.env.MICRO_API_KEY;
-  const teamID = process.env.MICRO_TEAM_ID;
+  const apiKey = env("MICRO_API_KEY");
+  const teamID = env("MICRO_TEAM_ID");
   if (!apiKey || !teamID) {
     throw new Error("Missing MICRO_API_KEY or MICRO_TEAM_ID");
   }
   return new Micro({
     apiKey,
     teamID,
-    baseURL: process.env.MICRO_BASE_URL || undefined,
+    baseURL: env("MICRO_BASE_URL"),
   });
 }
 

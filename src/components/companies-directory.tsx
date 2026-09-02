@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { DirectoryPage } from "@/components/directory-page";
-import { formatShortDate } from "@/lib/data";
+import { formatShortDate, isMicroViewId } from "@/lib/data";
 import { useCompanies, useCompanyViews } from "@/lib/use-companies";
 import { useStoredString } from "@/lib/use-stored-string";
 
@@ -13,10 +13,11 @@ export function CompaniesDirectory() {
   const [viewId, setViewId] = useStoredString(VIEW_STORAGE_KEY);
   const { items: views, source } = useCompanyViews();
   const selectedViewId = views.some((view) => view.id === viewId) ? viewId : (views[0]?.id ?? "");
+  const microViewId = source === "micro" && isMicroViewId(selectedViewId) ? selectedViewId : source === "placeholder" ? selectedViewId : "";
   const { items, status, message } = useCompanies({
     search,
-    viewId: selectedViewId,
-    enabled: source === "placeholder" || Boolean(selectedViewId),
+    viewId: microViewId,
+    enabled: source === "placeholder" || source === "micro",
   });
 
   const rows = useMemo(
