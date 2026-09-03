@@ -1,6 +1,20 @@
-# Granola UI
+# CRM workspace demo (Granola-inspired)
 
-A Granola-inspired People / Companies UI demo, wired to **Micro** for live workspace data. This is not production Granola — it is a Next.js app that recreates the look and flow for evaluation and integration work.
+Confidential evaluation build from **Micro**. UI exploration inspired by Granola’s People / Companies surfaces, wired to Micro for live workspace data.
+
+**Not** production Granola, not an official Granola product, and not licensed for redistribution outside an evaluation.
+
+## Scope / status
+
+| Area | Status |
+|------|--------|
+| People & Companies directories | Working (Placeholder fixtures or live Micro) |
+| Profiles, notes, activity, upcoming | Working against Micro when credentials are set |
+| Spaces / Granola notes | Optional — needs `GRANOLA_API_KEY` |
+| Ask bar, recipes, dictate / attach | **Visual placeholders only** — no submit / agent backend |
+| Auth / multi-tenant product shell | Out of scope for this demo |
+
+Default data mode is **Placeholder** (offline). Switch the sidebar to **Micro** after adding API keys.
 
 ## Requirements
 
@@ -31,6 +45,8 @@ Open [http://localhost:3001](http://localhost:3001).
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 
+See [HANDOFF.md](./HANDOFF.md) for a short walkthrough and staging-key notes.
+
 ## Placeholder vs Micro
 
 The sidebar has a **Placeholder / Micro** toggle (stored in `localStorage` as `granola-ui:data-source`). Default is Placeholder.
@@ -58,7 +74,7 @@ Copy `.env.example` → `.env.local`.
 | `LOCAL_EMAIL_ACTIVITY_PATH` | Optional | Path to local email activity JSON (defaults under `.local/`) |
 | `LOCAL_IMESSAGE_ACTIVITY_PATH` | Optional | Path to local iMessage activity JSON |
 
-`.env*` is gitignored (except `.env.example`). Local fixture dirs live under `.local/`.
+`.env*` is gitignored (except `.env.example`). Local fixture dirs live under `.local/`. Do not share real `.env` files in evaluation packages.
 
 ## Layout
 
